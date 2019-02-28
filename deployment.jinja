@@ -1,0 +1,40 @@
+resources:
+- name: {{ env["deployment"] }}-network
+  type: compute.v1.network
+  properties:
+    autoCreateSubnetworks: false
+
+- name: {{ properties["region"] }}-subnet
+  type: compute.v1.subnetwork
+  properties:
+    ipCidrRange: 10.10.0.0/16
+    network: $(ref.{{ env["deployment"] }}-network.selfLink)
+    region: {{ properties["region"] }}
+
+- name: {{ env["deployment"] }}-allow-http
+  type: compute.v1.firewall
+  properties:
+    network: $(ref.{{ env["deployment"] }}-network.selfLink)
+    sourceRanges: ["0.0.0.0/0"]
+    allowed:
+    - IPProtocol: TCP
+      ports: ["80"]
+
+- name: {{ env["deployment"] }}-instance-1
+  type: compute.v1.instance
+  properties:
+    zone: {{ properties["zone"] }}
+    machineType: zones/{{ properties["zone"] }}/machineTypes/n1-standard-1
+    disks:
+    - deviceName: boot
+      type: PERSISTENT
+      boot: true
+      autoDelete: true
+      initializeParams:
+        sourceImage: projects/debian-cloud/global/images/family/debian-9
+    networkInterfaces:
+    - network: $(ref.{{ env["deployment"] }}-network.selfLink)
+      subnetwork: $(ref.{{ properties["region"] }}-subnet.selfLink)
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
